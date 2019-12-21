@@ -50,8 +50,10 @@ struct Node {
     int val;        // kindがND_NUMの場合のみ使う
 };
 
+                      // EBNF
 Node *expr(void);     // expr    = mul ("+" mul | "-" mul)*
-Node *mul(void);      // mul     = primary ("*" primary | "/" primary)*
+Node *mul(void);      // mul     = unary ("*" unary | "/" unary)*
+Node *unary(void);    // unary   = ("+" | "-")? primary
 Node *primary(void);  // primary = num | "(" expr ")"
 
 
@@ -177,16 +179,24 @@ Node *expr() {
 }
 
 Node *mul() {
-    Node *node = primary();
+    Node *node = unary();
 
     for (;;) {
         if (consume('*'))
-            node = new_node(ND_MUL, node, primary());
+            node = new_node(ND_MUL, node, unary());
         else if (consume('/'))
-            node = new_node(ND_DIV, node, primary());
+            node = new_node(ND_DIV, node, unary());
         else
             return node;
     }
+}
+
+Node *unary() {
+    if (consume('+'))
+        return primary();
+    if (consume('-'))
+        return new_node(ND_SUB, new_node_num(0), primary());  // 0-x
+    return primary();
 }
 
 Node *primary() {
