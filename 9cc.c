@@ -1,3 +1,6 @@
+/*
+ * simple compiler (output x86_64 asm)
+ */
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -47,9 +50,9 @@ struct Node {
     int val;        // kindがND_NUMの場合のみ使う
 };
 
-Node *expr(void);
-Node *mul(void);
-Node *primary(void);
+Node *expr(void);     // expr    = mul ("+" mul | "-" mul)*
+Node *mul(void);      // mul     = primary ("*" primary | "/" primary)*
+Node *primary(void);  // primary = num | "(" expr ")"
 
 
 // エラー箇所を報告する
@@ -230,6 +233,7 @@ void gen(Node *node) {
 }
 
 int main(int argc, char **argv) {
+    // ./9cc <プログラム文>
     if (argc != 2) {
         error_at(token->str, "引数の個数が正しくありません");
         return 1;
