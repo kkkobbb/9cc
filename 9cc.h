@@ -31,5 +31,5 @@ struct Node {
 };
 
 
-Node *parse(const char *str);
-void codegen(Node *node);
+Node **parse(const char *str);
+void codegen(Node *node[]);

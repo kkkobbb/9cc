@@ -79,8 +79,9 @@ static bool consume(char *op) {
 static Token *consume_ident() {
     if (token->kind != TK_IDENT)
         return NULL;
+    Token *now = token;
     token = token->next;
-    return token;
+    return now;
 }
 
 // 次のトークンが期待している記号の場合、トークンを1つ進める
@@ -310,10 +311,11 @@ static Node *primary() {
     return new_node_num(expect_number());
 }
 
-Node *parse(const char *str) {
+Node **parse(const char *str) {
     user_input = str;
 
     // トークナイズしてパースする
     token = tokenize(str);
-    return expr();
+    program();
+    return code;
 }

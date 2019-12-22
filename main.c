@@ -14,10 +14,10 @@ int main(int argc, char **argv) {
     }
 
     // 構文解析
-    Node *node = parse(argv[1]);
+    Node **code = parse(argv[1]);
 
     // asm出力
-    codegen(node);
+    codegen(code);
 
     return 0;
 }
