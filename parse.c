@@ -13,6 +13,7 @@
 // トークンの種類
 typedef enum {
     TK_RESERVED,  // 記号
+    TK_IDENT,     // 識別子
     TK_NUM,       // 整数
     TK_EOF,       // 入力の終わり
 } TokenKind;
@@ -29,18 +30,23 @@ struct Token {
 };
 
 // Function                     // EBNF
-static Node *expr(void);        // expr       = equality
+static void program(void);      // program    = stmt*
+static Node *stmt(void);        // stmt       = expr ";"
+static Node *expr(void);        // expr       = assign
+static Node *assign(void);      // assign     = equality ("=" assign)?
 static Node *equality(void);    // equality   = relational ("==" relational | "!=" relational)*
 static Node *relational(void);  // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 static Node *add(void);         // add        = mul ("+" mul | "-" mul)*
 static Node *mul(void);         // mul        = unary ("*" unary | "/" unary)*
 static Node *unary(void);       // unary      = ("+" | "-")? primary
-static Node *primary(void);     // primary    = num | "(" expr ")"
+static Node *primary(void);     // primary    = num | ident | "(" expr ")"
 
 // 入力プログラム
 const char *user_input;
 // 現在着目しているトークン
 static Token *token;
+// 文単位のAST
+static Node *code[100];
 
 
 // エラー箇所を報告する
@@ -68,6 +74,15 @@ static bool consume(char *op) {
     return true;
 }
 
+// 次のトークンが識別子の場合、トークンを1つ進めてそのトークンを返す
+// それ以外の場合、NULを返す
+static Token *consume_ident() {
+    if (token->kind != TK_IDENT)
+        return NULL;
+    token = token->next;
+    return token;
+}
+
 // 次のトークンが期待している記号の場合、トークンを1つ進める
 // それ以外の場合、エラーを報告して終了
 static void expect(char *op) {
@@ -86,6 +101,10 @@ static int expect_number() {
     int val = token->val;
     token = token->next;
     return val;
+}
+
+static bool at_eof() {
+    return token->kind == TK_EOF;
 }
 
 // 新しいトークンを作成してcurに繋げる
@@ -135,6 +154,8 @@ static Token *tokenize(const char *p) {
         case ')':
         case '<':
         case '>':
+        case '=':
+        case ';':
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
@@ -146,6 +167,12 @@ static Token *tokenize(const char *p) {
             cur = new_token(TK_NUM, cur, p, newp - p);
             cur->val = val;
             p = newp;
+            continue;
+        }
+
+        // 1文字識別子
+        if ('a' <= *p && *p <= 'z') {
+            cur = new_token(TK_IDENT, cur, p++, 1);
             continue;
         }
 
@@ -171,8 +198,30 @@ static Node *new_node_num(int val) {
     return node;
 }
 
+static void program() {
+    int i = 0;
+    while (!at_eof())
+        code[i++] = stmt();
+    code[i] = NULL;
+
+}
+
+static Node *stmt() {
+    Node *node = expr();
+
+    expect(";");
+    return node;
+}
+
 static Node *expr() {
-    return equality();
+    return assign();
+}
+
+static Node *assign() {
+    Node *node = equality();
+    if (consume("="))
+        node = new_node(ND_ASSIGN, node, assign());
+    return node;
 }
 
 static Node *equality() {
@@ -244,6 +293,16 @@ static Node *primary() {
     if (consume("(")) {
         Node *node = expr();
         expect(")");
+        return node;
+    }
+
+    Token *tok = consume_ident();
+    if (tok) {
+        Node *node = calloc(1, sizeof(Node));
+        node->kind = ND_LVAR;
+        // 変数のオフセット 全ての関数でa-zまで用意しているため
+        // アルファベットで固定のオフセットになる
+        node->offset = (tok->str[0] - 'a' + 1) * 8;
         return node;
     }
 
