@@ -29,6 +29,9 @@ struct Token {
     int len;          // トークンの長さ
 };
 
+// ローカル変数
+LVar *locals;
+
 // Function                     // EBNF
 static void program(void);      // program    = stmt*
 static Node *stmt(void);        // stmt       = expr ";"
@@ -171,9 +174,12 @@ static Token *tokenize(const char *p) {
             continue;
         }
 
-        // 1文字識別子
-        if ('a' <= *p && *p <= 'z') {
-            cur = new_token(TK_IDENT, cur, p++, 1);
+        // 識別子 [a-z]+
+        const char *ident = p;
+        while ('a' <= *p && *p <= 'z')
+            p++;
+        if (ident != p) {
+            cur = new_token(TK_IDENT, cur, ident, p - ident);
             continue;
         }
 
@@ -289,6 +295,13 @@ static Node *unary() {
     return primary();
 }
 
+static LVar *find_lvar(Token *tok) {
+    for (LVar *var = locals; var; var = var->next)
+        if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+            return var;
+    return NULL;
+}
+
 static Node *primary() {
     // 次のトークンが"("なら、 "(" expr ")" のはず
     if (consume("(")) {
@@ -299,11 +312,25 @@ static Node *primary() {
 
     Token *tok = consume_ident();
     if (tok) {
+        // 変数
         Node *node = calloc(1, sizeof(Node));
         node->kind = ND_LVAR;
-        // 変数のオフセット 全ての関数でa-zまで用意しているため
-        // アルファベットで固定のオフセットになる
-        node->offset = (tok->str[0] - 'a' + 1) * 8;
+
+        LVar *lvar = find_lvar(tok);
+        if (lvar) {
+            // 作成済み
+            node->offset = lvar->offset;
+        } else {
+            // 新規
+            lvar = calloc(1, sizeof(LVar));
+            lvar->next = locals;
+            lvar->name = tok->str;
+            lvar->len = tok->len;
+            if (locals != NULL)
+                lvar->offset = locals->offset + 8;
+            node->offset = lvar->offset;
+            locals = lvar;
+        }
         return node;
     }
 

@@ -35,5 +35,8 @@ try 1 "10 + 1 == 10 -1 + 2;"
 try 1 "10 != 3;"
 try 3 "a=3;"
 try 10 "a=3;7+a;"
+try 11 "var=11;"
+try 12 "abc=5;abc+7;"
+try 13 "aa=3;bb=10;aa+bb;"
 
 echo OK
