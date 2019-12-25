@@ -38,5 +38,7 @@ try 10 "a=3;7+a;"
 try 11 "var=11;"
 try 12 "abc=5;abc+7;"
 try 13 "aa=3;bb=10;aa+bb;"
+try 5 "return 5;"
+try 3 "aa=2;bb=5;return aa+1;"
 
 echo OK

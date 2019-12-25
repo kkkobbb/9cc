@@ -15,6 +15,7 @@ typedef enum {
     TK_RESERVED,  // 記号
     TK_IDENT,     // 識別子
     TK_NUM,       // 整数
+    TK_RETURN,    // return
     TK_EOF,       // 入力の終わり
 } TokenKind;
 
@@ -34,7 +35,7 @@ LVar *locals;
 
 // Function                     // EBNF
 static void program(void);      // program    = stmt*
-static Node *stmt(void);        // stmt       = expr ";"
+static Node *stmt(void);        // stmt       = expr ";" | "return" expr ";"
 static Node *expr(void);        // expr       = assign
 static Node *assign(void);      // assign     = equality ("=" assign)?
 static Node *equality(void);    // equality   = relational ("==" relational | "!=" relational)*
@@ -77,14 +78,14 @@ static bool consume(char *op) {
     return true;
 }
 
-// 次のトークンが識別子の場合、トークンを1つ進めてそのトークンを返す
-// それ以外の場合、NULを返す
-static Token *consume_ident() {
-    if (token->kind != TK_IDENT)
+// 次のトークンが kind の場合、トークンを1つ進めてそのトークンを返す
+// それ以外の場合、NULLを返す
+static Token *consume_token(TokenKind kind) {
+    if (token->kind != kind)
         return NULL;
-    Token *now = token;
+    Token *tmp = token;
     token = token->next;
-    return now;
+    return tmp;
 }
 
 // 次のトークンが期待している記号の場合、トークンを1つ進める
@@ -119,6 +120,13 @@ static Token *new_token(TokenKind kind, Token *cur, const char *str, int len) {
     tok->len = len;
     cur->next = tok;
     return tok;
+}
+
+static bool is_alnum(char c) {
+    return ('a' <= c && c <= 'z') ||
+        ('A' <= c && c <= 'Z') ||
+        ('0' <= c && c <= '9') ||
+        (c == '_');
 }
 
 static bool equal_str(const char *s, const char *t) {
@@ -174,6 +182,13 @@ static Token *tokenize(const char *p) {
             continue;
         }
 
+        // 予約語
+        if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+            cur = new_token(TK_RETURN, cur, p, 6);
+            p += 6;
+            continue;
+        }
+
         // 識別子 [a-z]+
         const char *ident = p;
         while ('a' <= *p && *p <= 'z')
@@ -214,7 +229,13 @@ static void program() {
 }
 
 static Node *stmt() {
-    Node *node = expr();
+    Node *node;
+
+    if (consume_token(TK_RETURN)) {
+        node = new_node(ND_RETURN, expr(), NULL);
+    } else {
+        node = expr();
+    }
 
     expect(";");
     return node;
@@ -310,7 +331,7 @@ static Node *primary() {
         return node;
     }
 
-    Token *tok = consume_ident();
+    Token *tok = consume_token(TK_IDENT);
     if (tok) {
         // 変数
         Node *node = calloc(1, sizeof(Node));
